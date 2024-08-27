@@ -20,7 +20,14 @@ class PipelineStack(Stack):
     def __init__(self, scope: Construct, id: str, connection_arn: str,**kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-        pipeline = pipelines.CodePipeline(self, "Pipeline")
+        pipeline = pipelines.CodePipeline(self, "Pipeline",
+            synth=pipelines.ShellStep("Synth",
+                input=pipelines.CodePipelineSource.connection("saldyy/aws-code-pipeline-101",
+                                                              "master",
+                                                              connection_arn=connection_arn),
+                commands=["make build"]
+            )
+        )
         test_stage = TestStage(self, "Test")
         pipeline.add_stage(test_stage, pre=[
                 pipelines.ManualApprovalStep("Approve")
