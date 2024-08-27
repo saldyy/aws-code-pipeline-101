@@ -6,7 +6,7 @@ from aws_cdk import (
     aws_codestarconnections as codestarconnections
 ) 
 
-class PipelineStack(Stack):
+class GithubConnection(Stack):
 
     def __init__(self, scope: Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
@@ -22,6 +22,7 @@ class PipelineStack(Stack):
             owner_id="saldyy",
             repository_name="code-pipeline-101",
         )
+        self.connection_arn = codestar_connection.attr_connection_arn 
 
 
         # Output the ARN of the connection
