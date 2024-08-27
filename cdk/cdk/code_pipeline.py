@@ -12,7 +12,7 @@ class PipelineStack(Stack):
 
         pipeline = pipelines.CodePipeline(self, "Pipeline",
             synth=pipelines.ShellStep("Synth",
-                input=pipelines.CodePipelineSource.connection("/aws-code-pipeline-101",
+                input=pipelines.CodePipelineSource.connection("saldyy/aws-code-pipeline-101",
                                                               "master",
                                                               connection_arn=connection_arn),
                 commands=["make build"]
