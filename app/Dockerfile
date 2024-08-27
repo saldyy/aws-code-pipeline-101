@@ -10,7 +10,12 @@ RUN go mod tidy
 
 COPY . .
 
-RUN go build -o main ./main.go
+RUN make build
+
+FROM builder as tester
+
+# Run unit tests
+RUN make test
 
 FROM debian:bullseye-slim
 
