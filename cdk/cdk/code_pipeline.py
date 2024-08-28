@@ -2,36 +2,59 @@ from constructs import Construct
 
 from aws_cdk import (
     Stack,
-    pipelines,
-    Stage
+    aws_codebuild as codebuild,
+    aws_codepipeline as codepipeline,
+    aws_codepipeline_actions as codepipeline_actions,
+
 ) 
-
-class TestStageStack(Stack):
-    def __init__(self, scope: Construct, id: str, **kwargs) -> None:
-        super().__init__(scope, id, **kwargs)
-
-class TestStage(Stage):
-    def __init__(self, scope: Construct, id: str, **kwargs) -> None:
-        super().__init__(scope, id, **kwargs)
-        TestStageStack(self, "TestStageStack")
 
 class PipelineStack(Stack):
 
     def __init__(self, scope: Construct, id: str, connection_arn: str,**kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-        pipeline = pipelines.CodePipeline(self, "Pipeline",
-            synth=pipelines.ShellStep("Synth",
-                input=pipelines.CodePipelineSource.connection("saldyy/aws-code-pipeline-101",
-                                                              "master",
-                                                              connection_arn=connection_arn),
-                commands=["pip install -r ./cdk/requirements.txt", "npm install -g aws-cdk", "cdk synth"],
+        pipeline = codepipeline.Pipeline(self, "Pipeline")
+
+        source_output = codepipeline.Artifact(artifact_name="SourceArtifact")
+        source_action = codepipeline_actions.CodeStarConnectionsSourceAction(
+            action_name="Source",
+            connection_arn=connection_arn,
+            owner="saldyy",
+            repo="aws-code-pipeline-101",
+            output=source_output
+        )
+        pipeline.add_stage(stage_name="Source", actions=[source_action])
+
+
+        test_project = codebuild.PipelineProject(
+            self, "GolangTestProject",
+            build_spec=codebuild.BuildSpec.from_object({
+                "version": "0.2",
+                "phases": {
+                    "install": {
+                        "runtime-versions": {
+                            "golang": "1.21.4"
+                        }
+                    },
+                    "build": {
+                        "commands": [
+                            "echo --------START--------",
+                            "go version",
+                            "cd app",
+                            "make test"
+                        ]
+                    }
+                }
+            }),
+            environment=codebuild.BuildEnvironment(
+                build_image=codebuild.LinuxBuildImage.STANDARD_5_0
             )
         )
-
-        test_stage = TestStage(self, "Test")
-        pipeline.add_stage(test_stage, pre=[
-                pipelines.ManualApprovalStep("Approve")
-            ])
+        test_action = codepipeline_actions.CodeBuildAction(
+            action_name="RunTests",
+            project=test_project,
+            input=source_output
+        )
+        pipeline.add_stage(stage_name="Test", actions=[test_action])
 
 
