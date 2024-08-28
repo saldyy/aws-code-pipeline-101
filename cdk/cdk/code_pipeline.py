@@ -1,3 +1,4 @@
+from typing_extensions import runtime
 from constructs import Construct
 
 from aws_cdk import (
@@ -25,7 +26,8 @@ class PipelineStack(Stack):
                 input=pipelines.CodePipelineSource.connection("saldyy/aws-code-pipeline-101",
                                                               "master",
                                                               connection_arn=connection_arn),
-                commands=["make build"]
+                commands=["pip install -r requirements.txt", "npm install -g aws-cdk", "cdk synth"],
+                primary_output_directory="cdk"
             )
         )
         test_stage = TestStage(self, "Test")
