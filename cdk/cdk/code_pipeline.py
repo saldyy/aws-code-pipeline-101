@@ -1,8 +1,10 @@
-from aws_cdk.aws_iam import IRole
 from constructs import Construct
 
 from aws_cdk import (
     Stack,
+    aws_iam as iam,
+    aws_ecr,
+    RemovalPolicy,
     aws_codebuild as codebuild,
     aws_codepipeline as codepipeline,
     aws_codepipeline_actions as codepipeline_actions,
@@ -11,9 +13,26 @@ from aws_cdk import (
 
 class PipelineStack(Stack):
 
-    def __init__(self, scope: Construct, id: str, connection_arn: str, ecr_arn: str,
-                 ecr_iam_access_role_arn = IRole, **kwargs) -> None:
+    def __init__(self, scope: Construct, id: str, connection_arn: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
+
+        repository = aws_ecr.Repository(
+                self,
+                id="GolangRepository",
+                repository_name="golang-repository",
+                image_scan_on_push=False,
+                removal_policy=RemovalPolicy.DESTROY
+                )
+
+        ecr_access_role = iam.Role(
+                self,
+                "EcrAccessRole",
+                assumed_by=iam.ServicePrincipal("codebuild.amazonaws.com"),
+                role_name="ecr-access-role"
+                )
+
+        repository.grant_pull_push(ecr_access_role)
+
 
         pipeline = codepipeline.Pipeline(self, "Pipeline")
 
@@ -62,7 +81,7 @@ class PipelineStack(Stack):
 
         build_project = codebuild.PipelineProject(
             self, "GolangBuildProject",
-            role=ecr_iam_access_role_arn,
+            role=ecr_access_role,
             build_spec=codebuild.BuildSpec.from_object({
                 "version": "0.2",
                 "phases": {
@@ -70,10 +89,11 @@ class PipelineStack(Stack):
                         "commands": [
                             "echo --------START BUILD--------",
                             "cd app",
-                            "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin {ecr_arn}".format(ecr_arn=ecr_arn),
-                            "docker build -t golang-proj-$CODEBUILD_BUILD_NUMBER .",
-                            "docker tag golang-repository:$CODEBUILD_BUILD_NUMBER {ecr_arn}:$CODEBUILD_BUILD_NUMBER".format(ecr_arn=ecr_arn),
-                            "docker push {ecr_arn}:$CODEBUILD_BUILD_NUMBER".format(ecr_arn=ecr_arn)
+                            "IMAGE_TAG=golang-proj-$CODEBUILD_BUILD_NUMBER",
+                            "aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin {ecr_uri}".format(ecr_uri=repository.repository_uri),
+                            "docker build -t $IMAGE_TAG .",
+                            "docker tag $IMAGE_TAG {ecr_uri}:$IMAGE_TAG".format(ecr_uri=repository.repository_uri),
+                            "docker push {ecr_uri}:$IMAGE_TAG".format(ecr_uri=repository.repository_uri)
                         ]
                     }
                 }
