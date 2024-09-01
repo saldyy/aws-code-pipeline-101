@@ -8,8 +8,14 @@ class VpcStack(Stack):
         super().__init__(scope, id, **kwargs)
         # Create VPC
         self.vpc = aws_ec2.Vpc(
-            self, "GolangVpc",
-            max_azs=1
+            self,
+            id="GolangVpc",
+            cidr="10.0.0.1/16",
+            availability_zones=[
+                "ap-southeast-1a",
+                "ap-southeast-1b",
+                "ap-southeast-1c"
+            ]
         )
 
         CfnOutput(self, "VpcId", value=self.vpc.vpc_id)
