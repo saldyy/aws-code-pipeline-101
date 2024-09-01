@@ -46,7 +46,7 @@ class EcsStack(Stack):
         task_definition = ecs.Ec2TaskDefinition(
             self,
             "GolangTaskDefinition",
-            network_mode=ecs.NetworkMode.HOST          
+            network_mode=ecs.NetworkMode.AWS_VPC          
             )
 
         task_definition.add_container("DefaultContainer",
@@ -56,7 +56,6 @@ class EcsStack(Stack):
             container_name="GolangContainer",
             port_mappings=[ecs.PortMapping(
                 container_port=8080,
-                host_port=8080,
                 protocol=ecs.Protocol.TCP)
             ],
             logging=ecs.LogDriver.aws_logs(stream_prefix="ecs", log_group=log_group)
@@ -75,7 +74,7 @@ class EcsStack(Stack):
         # Customize the health check on the target group
         service.target_group.configure_health_check(
             path="/",
-            port="80",
+            port="8080",
             healthy_http_codes="200",
             interval=Duration.seconds(30),
             timeout=Duration.seconds(5),
