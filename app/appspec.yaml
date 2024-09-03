@@ -7,3 +7,7 @@ Resources:
         LoadBalancerInfo:
           ContainerName: "GolangContainer"
           ContainerPort: 8080
+artifacts:
+  - files:
+      - app/appspec.yaml
+      - app/taskdef.json
