@@ -1,4 +1,4 @@
-FROM golang:1.23.0-bullseye as builder
+FROM public.ecr.aws/docker/library/golang:1.23.0-bullseye as builder
 
 WORKDIR /app
 
