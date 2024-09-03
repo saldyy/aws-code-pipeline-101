@@ -90,6 +90,5 @@
         "EC2"
     ],
     "registeredAt": "2024-09-03T09:31:55.342Z",
-    "registeredBy": "arn:aws:sts::454159633175:assumed-role/cdk-hnb659fds-cfn-exec-role-454159633175-ap-southeast-1/AWSCloudFormation",
-    "tags": []
+    "registeredBy": "arn:aws:sts::454159633175:assumed-role/cdk-hnb659fds-cfn-exec-role-454159633175-ap-southeast-1/AWSCloudFormation"
 }
