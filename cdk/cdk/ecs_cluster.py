@@ -69,6 +69,7 @@ class EcsStack(Stack):
             public_load_balancer=True,
             listener_port=80,
             target_protocol=elbv2.ApplicationProtocol.HTTP,
+            deployment_controller=ecs.DeploymentController(type=ecs.DeploymentControllerType.CODE_DEPLOY),
         )
 
         # Customize the health check on the target group

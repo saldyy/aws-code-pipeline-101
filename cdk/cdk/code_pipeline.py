@@ -76,14 +76,14 @@ class PipelineStack(Stack):
             project=test_project,
             input=source_output
         )
-        pipeline.add_stage(stage_name="Test", actions=[test_action])
+        # pipeline.add_stage(stage_name="Test", actions=[test_action])
 
 
         build_project = codebuild.PipelineProject(
             self, "GolangBuildProject",
             role=ecr_access_role,
             build_spec=codebuild.BuildSpec.from_object({
-                "version": "0.2",
+                "version": 0.2,
                 "phases": {
                     "build": {
                         "commands": [
@@ -95,17 +95,35 @@ class PipelineStack(Stack):
                             "docker tag $IMAGE_TAG {ecr_uri}:$IMAGE_TAG".format(ecr_uri=repository.repository_uri),
                             "docker push {ecr_uri}:$IMAGE_TAG".format(ecr_uri=repository.repository_uri)
                         ]
+                    },
+                    "post_build": {
+                        "commands": [
+                            "echo --------START POST BUILD--------",
+                            "IMAGE_TAG=golang-proj-$CODEBUILD_BUILD_NUMBER",
+                            "IMAGE_URI={ecr_uri}:$IMAGE_TAG".format(ecr_uri=repository.repository_uri),
+                            "aws ecs describe-task-definition --task-definition ${TASK_DEFINITION_NAME} | jq '.taskDefinition.containerDefinitions[0].image = \"\'\"$IMAGE_URI\"\'\"' > temp.json", "jq '.taskDefinition' temp.json > taskdef.json",
+                            "cat taskdef.json",
+                        ]
+
                     }
+                },
+                "artifacts": {
+                    "files": ["app/appspec.yaml", "app/taskdef.json"]
                 }
             }),
             environment=codebuild.BuildEnvironment(
-                build_image=codebuild.LinuxBuildImage.STANDARD_5_0
-            )
+                build_image=codebuild.LinuxBuildImage.STANDARD_5_0,
+                environment_variables = {
+                    "TASK_DEFINITION_NAME": codebuild.BuildEnvironmentVariable(value="EcsgolangcicdGolangTaskDefinitionCF434C82")
+                }
+            ),
         )
 
+        build_output = codepipeline.Artifact(artifact_name="BuildArtifact")
         build_action = codepipeline_actions.CodeBuildAction(
             action_name="RunBuild",
             project=build_project,
-            input=source_output
+            input=source_output,
+            outputs=[build_output]
         )
         pipeline.add_stage(stage_name="Build", actions=[build_action])
