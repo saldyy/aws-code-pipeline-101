@@ -17,7 +17,7 @@ func main() {
 	e.GET("/", func(c echo.Context) error {
 		slog.Info("Access route health check")
 
-		return json.NewEncoder(c.Response()).Encode(map[string]string{"message": "ok ok ok"})
+		return json.NewEncoder(c.Response()).Encode(map[string]string{"message": "hello world"})
 	})
 
 	e.POST("/add", func(c echo.Context) error {
