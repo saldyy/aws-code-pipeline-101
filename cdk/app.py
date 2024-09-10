@@ -14,6 +14,7 @@ ecs_cluster_stack = ecs_cluster.EcsStack(app, "Ecs-golang-cicd", vpc=vpc_stack.v
 PipelineStack(app,
               "Pipeline-golang-cicd",
               connection_arn=codestar_connection,
+              task_definition=ecs_cluster_stack.task_definition,
               )
 
 app.synth()

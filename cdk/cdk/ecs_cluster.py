@@ -43,13 +43,13 @@ class EcsStack(Stack):
             removal_policy=RemovalPolicy.DESTROY
         )
         # ECS Task Definition
-        task_definition = ecs.Ec2TaskDefinition(
+        self.task_definition = ecs.Ec2TaskDefinition(
             self,
             "GolangTaskDefinition",
             network_mode=ecs.NetworkMode.AWS_VPC          
             )
 
-        task_definition.add_container("DefaultContainer",
+        self.task_definition.add_container("DefaultContainer",
             image=ecs.ContainerImage.from_ecr_repository(repository, tag="golang-proj-6"),
             memory_limit_mib=512,
             cpu=256,
@@ -64,7 +64,7 @@ class EcsStack(Stack):
         service = ecs_patterns.ApplicationLoadBalancedEc2Service(
             self, "GolangApplicationService",
             cluster=self.cluster,
-            task_definition=task_definition,
+            task_definition=self.task_definition,
             desired_count=1,
             public_load_balancer=True,
             listener_port=80,

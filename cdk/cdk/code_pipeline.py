@@ -1,6 +1,8 @@
+from aws_cdk.aws_ecs import ITaskDefinition
 from constructs import Construct
 
 from aws_cdk import (
+    Duration,
     Stack,
     aws_iam as iam,
     aws_ecr,
@@ -8,12 +10,13 @@ from aws_cdk import (
     aws_codebuild as codebuild,
     aws_codepipeline as codepipeline,
     aws_codepipeline_actions as codepipeline_actions,
+    aws_codedeploy as codedeploy
 
 ) 
 
 class PipelineStack(Stack):
 
-    def __init__(self, scope: Construct, id: str, connection_arn: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, id: str, connection_arn: str, task_definition: ITaskDefinition, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
         repository = aws_ecr.Repository(
@@ -26,10 +29,18 @@ class PipelineStack(Stack):
 
         ecr_access_role = iam.Role(
                 self,
-                "EcrAccessRole",
+                "CodeBuildRole",
                 assumed_by=iam.ServicePrincipal("codebuild.amazonaws.com"),
-                role_name="ecr-access-role"
-                )
+                role_name="code-build-role"
+            )
+        ecr_access_role.add_to_policy(iam.PolicyStatement(
+            actions=[
+                "ecs:DescribeTaskDefinition",
+                "ecs:RegisterTaskDefinition",
+                "ecs:ListTaskDefinitions",
+             ],
+            resources=[task_definition.task_definition_arn]
+        ))
 
         repository.grant_pull_push(ecr_access_role)
 
@@ -45,7 +56,6 @@ class PipelineStack(Stack):
             output=source_output
         )
         pipeline.add_stage(stage_name="Source", actions=[source_action])
-
 
         test_project = codebuild.PipelineProject(
             self, "GolangTestProject",
@@ -126,4 +136,31 @@ class PipelineStack(Stack):
             input=source_output,
             outputs=[build_output]
         )
-        pipeline.add_stage(stage_name="Build", actions=[build_action])
+        pipeline.add_stage(stage_name="Build", actions=[build_action], )
+
+
+        code_deploy_role = iam.Role(
+            self,
+            "CodeDeployRole",
+            assumed_by=iam.ServicePrincipal("codedeploy.amazonaws.com"),
+            role_name="code-deploy-role",
+        )
+        code_deploy_role.add_to_policy(iam.PolicyStatement(
+            actions=[
+                "ecs:DescribeServices",
+                "ecs:UpdateService",
+                "ecs:DescribeTaskDefinition",
+                "ecs:RegisterTaskDefinition",
+                "iam:PassRole",
+                "codedeploy:*",
+            ],
+            resources=[task_definition.task_definition_arn]
+        ))
+
+        deploy_application = codedeploy.EcsApplication(
+            self,
+            "CodeDeployApplication",
+            application_name="GolangDeployApplication",
+        )
+
+
