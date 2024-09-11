@@ -177,9 +177,8 @@ class PipelineStack(Stack):
             auto_rollback=codedeploy.AutoRollbackConfig(stopped_deployment=True),
             application=deploy_application,
             service=ecs_service.service,
-            deployment_config=codedeploy.EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES,
+            deployment_config=codedeploy.EcsDeploymentConfig.ALL_AT_ONCE,
             blue_green_deployment_config=codedeploy.EcsBlueGreenDeploymentConfig(
-                deployment_approval_wait_time=Duration.minutes(1),
                 blue_target_group=ecs_service.target_group,
                 green_target_group=green_target_group,
                 listener=ecs_service.listener,
