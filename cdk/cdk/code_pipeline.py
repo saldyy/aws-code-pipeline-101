@@ -1,4 +1,5 @@
-from aws_cdk.aws_ecs import ITaskDefinition
+from aws_cdk.aws_ecs import IService, ITaskDefinition
+from aws_cdk.aws_ecs_patterns import ApplicationLoadBalancedEc2Service, ApplicationLoadBalancedEc2ServiceProps
 from constructs import Construct
 
 from aws_cdk import (
@@ -10,13 +11,15 @@ from aws_cdk import (
     aws_codebuild as codebuild,
     aws_codepipeline as codepipeline,
     aws_codepipeline_actions as codepipeline_actions,
-    aws_codedeploy as codedeploy
+    aws_codedeploy as codedeploy,
+    aws_elasticloadbalancingv2 as elbv2
 
 ) 
 
 class PipelineStack(Stack):
 
-    def __init__(self, scope: Construct, id: str, connection_arn: str, task_definition: ITaskDefinition, **kwargs) -> None:
+    def __init__(self, scope: Construct, id: str, connection_arn: str, task_definition: ITaskDefinition, 
+                 ecs_service: ApplicationLoadBalancedEc2Service,**kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
         repository = aws_ecr.Repository(
@@ -27,22 +30,22 @@ class PipelineStack(Stack):
                 removal_policy=RemovalPolicy.DESTROY
                 )
 
-        ecr_access_role = iam.Role(
+        code_build_access_role = iam.Role(
                 self,
                 "CodeBuildRole",
                 assumed_by=iam.ServicePrincipal("codebuild.amazonaws.com"),
                 role_name="code-build-role"
             )
-        ecr_access_role.add_to_policy(iam.PolicyStatement(
+        code_build_access_role.add_to_policy(iam.PolicyStatement(
             actions=[
                 "ecs:DescribeTaskDefinition",
                 "ecs:RegisterTaskDefinition",
                 "ecs:ListTaskDefinitions",
              ],
-            resources=[task_definition.task_definition_arn]
+            resources=["*"]
         ))
 
-        repository.grant_pull_push(ecr_access_role)
+        repository.grant_pull_push(code_build_access_role)
 
 
         pipeline = codepipeline.Pipeline(self, "Pipeline")
@@ -91,12 +94,13 @@ class PipelineStack(Stack):
 
         build_project = codebuild.PipelineProject(
             self, "GolangBuildProject",
-            role=ecr_access_role,
+            role=code_build_access_role,
             build_spec=codebuild.BuildSpec.from_object({
                 "version": 0.2,
                 "phases": {
                     "build": {
                         "commands": [
+                            "set -e" ,
                             "echo --------START BUILD--------",
                             "cd app",
                             "IMAGE_TAG=golang-proj-$CODEBUILD_BUILD_NUMBER",
@@ -108,6 +112,7 @@ class PipelineStack(Stack):
                     },
                     "post_build": {
                         "commands": [
+                            "set -e" ,
                             "echo --------START POST BUILD--------",
                             "IMAGE_TAG=golang-proj-$CODEBUILD_BUILD_NUMBER",
                             "IMAGE_URI={ecr_uri}:$IMAGE_TAG".format(ecr_uri=repository.repository_uri),
@@ -162,5 +167,33 @@ class PipelineStack(Stack):
             "CodeDeployApplication",
             application_name="GolangDeployApplication",
         )
+        green_target_group = elbv2.ApplicationTargetGroup(self, "GreenTargetGroup",
+                                                          vpc=ecs_service.cluster.vpc, port=80,
+                                                          target_type=elbv2.TargetType.IP)
+        deployment_group = codedeploy.EcsDeploymentGroup(
+            self,
+            "BlueGreenDeployDeploymentGroup",
+            role=code_deploy_role,
+            auto_rollback=codedeploy.AutoRollbackConfig(stopped_deployment=True),
+            application=deploy_application,
+            service=ecs_service.service,
+            deployment_config=codedeploy.EcsDeploymentConfig.CANARY_10_PERCENT_5_MINUTES,
+            blue_green_deployment_config=codedeploy.EcsBlueGreenDeploymentConfig(
+                deployment_approval_wait_time=Duration.minutes(1),
+                blue_target_group=ecs_service.target_group,
+                green_target_group=green_target_group,
+                listener=ecs_service.listener,
+            ),
+        )
 
+        deploy_action = codepipeline_actions.CodeDeployEcsDeployAction(
+            action_name="Deploy",
+            deployment_group=deployment_group,
+            task_definition_template_file=codepipeline.ArtifactPath(build_output, file_name="app/taskdef.json"),
+            app_spec_template_file=codepipeline.ArtifactPath(build_output, file_name="app/appspec.yaml"),
+            
+        )
+        pipeline.add_stage(stage_name="Deploy", actions=[deploy_action])
+
+        
 

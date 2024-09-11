@@ -61,7 +61,7 @@ class EcsStack(Stack):
             logging=ecs.LogDriver.aws_logs(stream_prefix="ecs", log_group=log_group)
         )
 
-        service = ecs_patterns.ApplicationLoadBalancedEc2Service(
+        self.service = ecs_patterns.ApplicationLoadBalancedEc2Service(
             self, "GolangApplicationService",
             cluster=self.cluster,
             task_definition=self.task_definition,
@@ -73,7 +73,7 @@ class EcsStack(Stack):
         )
 
         # Customize the health check on the target group
-        service.target_group.configure_health_check(
+        self.service.target_group.configure_health_check(
             path="/",
             port="8080",
             healthy_http_codes="200",

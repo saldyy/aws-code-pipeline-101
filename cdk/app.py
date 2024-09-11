@@ -15,6 +15,7 @@ PipelineStack(app,
               "Pipeline-golang-cicd",
               connection_arn=codestar_connection,
               task_definition=ecs_cluster_stack.task_definition,
+              ecs_service=ecs_cluster_stack.service,
               )
 
 app.synth()
