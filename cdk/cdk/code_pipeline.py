@@ -89,7 +89,7 @@ class PipelineStack(Stack):
             project=test_project,
             input=source_output
         )
-        # pipeline.add_stage(stage_name="Test", actions=[test_action])
+        pipeline.add_stage(stage_name="Test", actions=[test_action])
 
 
         build_project = codebuild.PipelineProject(
