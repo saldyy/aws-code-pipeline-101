@@ -13,22 +13,13 @@ from aws_cdk import (
     aws_codepipeline_actions as codepipeline_actions,
     aws_codedeploy as codedeploy,
     aws_elasticloadbalancingv2 as elbv2
-
-) 
+)
 
 class PipelineStack(Stack):
 
-    def __init__(self, scope: Construct, id: str, connection_arn: str, task_definition: ITaskDefinition, 
-                 ecs_service: ApplicationLoadBalancedEc2Service,**kwargs) -> None:
+    def __init__(self, scope: Construct, id: str, connection_arn: str, task_definition: ITaskDefinition,
+                 ecs_service: ApplicationLoadBalancedEc2Service, repository: aws_ecr.IRepository,**kwargs) -> None:
         super().__init__(scope, id, **kwargs)
-
-        repository = aws_ecr.Repository(
-                self,
-                id="GolangRepository",
-                repository_name="golang-repository",
-                image_scan_on_push=False,
-                removal_policy=RemovalPolicy.DESTROY
-                )
 
         code_build_access_role = iam.Role(
                 self,
@@ -100,7 +91,6 @@ class PipelineStack(Stack):
                 "phases": {
                     "build": {
                         "commands": [
-                            "set -e" ,
                             "echo --------START BUILD--------",
                             "cd app",
                             "IMAGE_TAG=golang-proj-$CODEBUILD_BUILD_NUMBER",
@@ -112,7 +102,6 @@ class PipelineStack(Stack):
                     },
                     "post_build": {
                         "commands": [
-                            "set -e" ,
                             "echo --------START POST BUILD--------",
                             "IMAGE_TAG=golang-proj-$CODEBUILD_BUILD_NUMBER",
                             "IMAGE_URI={ecr_uri}:$IMAGE_TAG".format(ecr_uri=repository.repository_uri),
@@ -190,9 +179,5 @@ class PipelineStack(Stack):
             deployment_group=deployment_group,
             task_definition_template_file=codepipeline.ArtifactPath(build_output, file_name="app/taskdef.json"),
             app_spec_template_file=codepipeline.ArtifactPath(build_output, file_name="app/appspec.yaml"),
-            
         )
         pipeline.add_stage(stage_name="Deploy", actions=[deploy_action])
-
-        
-

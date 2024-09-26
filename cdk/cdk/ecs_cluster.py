@@ -15,12 +15,10 @@ from aws_cdk import (
 
 class EcsStack(Stack):
 
-    def __init__(self, scope: Construct, id: str, vpc: ec2.IVpc, **kwargs) -> None:
+    def __init__(self, scope: Construct, id: str, vpc: ec2.IVpc, repository: ecr.IRepository, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
         # ECR
-        repository = ecr.Repository.from_repository_name(self, "GolangRepository",
-                                                        repository_name="golang-repository")
 
         # ECS Cluster
         self.cluster = ecs.Cluster(self, "MyCluster", vpc=vpc, cluster_name="GolangCluster")
@@ -28,6 +26,8 @@ class EcsStack(Stack):
         self.cluster.add_capacity("DefaultAutoScalingGroupCapacity",
             instance_type=ec2.InstanceType("t2.small"),
             machine_image=ecs.EcsOptimizedImage.amazon_linux2(),
+            spot_instance_draining=True,
+            auto_scaling_group_name="GolangAppASG",
             desired_capacity=1,
             min_capacity=1,
             max_capacity=3,
@@ -46,11 +46,11 @@ class EcsStack(Stack):
         self.task_definition = ecs.Ec2TaskDefinition(
             self,
             "GolangTaskDefinition",
-            network_mode=ecs.NetworkMode.AWS_VPC          
-            )
+            network_mode=ecs.NetworkMode.AWS_VPC,
+        )
 
         self.task_definition.add_container("DefaultContainer",
-            image=ecs.ContainerImage.from_ecr_repository(repository, tag="golang-proj-6"),
+            image=ecs.ContainerImage.from_ecr_repository(repository, tag="0"),
             memory_limit_mib=512,
             cpu=256,
             container_name="GolangContainer",
@@ -70,6 +70,8 @@ class EcsStack(Stack):
             listener_port=80,
             target_protocol=elbv2.ApplicationProtocol.HTTP,
             deployment_controller=ecs.DeploymentController(type=ecs.DeploymentControllerType.CODE_DEPLOY),
+            cpu=512,
+            memory_limit_mib=1024,
         )
 
         # Customize the health check on the target group
