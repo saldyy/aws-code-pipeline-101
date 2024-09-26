@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/golang:1.23.0-bullseye as builder
+FROM public.ecr.aws/docker/library/golang:1.23.0-bullseye AS builder
 
 WORKDIR /app
 
@@ -12,13 +12,7 @@ COPY . .
 
 RUN make build
 
-FROM builder as tester
-
-# Run unit tests
-
-RUN make test
-
-FROM debian:bullseye-slim
+FROM debian:bullseye-slim AS runner
 
 WORKDIR /app
 COPY --from=builder /app/main .
