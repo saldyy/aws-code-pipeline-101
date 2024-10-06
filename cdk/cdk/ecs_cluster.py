@@ -18,8 +18,6 @@ class EcsStack(Stack):
     def __init__(self, scope: Construct, id: str, vpc: ec2.IVpc, repository: ecr.IRepository, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-        # ECR
-
         # ECS Cluster
         self.cluster = ecs.Cluster(self, "MyCluster", vpc=vpc, cluster_name="GolangCluster")
         # Add capacity to it
@@ -61,6 +59,7 @@ class EcsStack(Stack):
             logging=ecs.LogDriver.aws_logs(stream_prefix="ecs", log_group=log_group)
         )
 
+        # ECS Service
         self.service = ecs_patterns.ApplicationLoadBalancedEc2Service(
             self, "GolangApplicationService",
             cluster=self.cluster,
